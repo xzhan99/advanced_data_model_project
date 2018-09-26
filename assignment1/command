@@ -1,0 +1,49 @@
+[SQ1]
+db.getCollection('posts').aggregate([
+{$lookup:{
+    from: "users",
+    localField: "OwnerUserId",
+    foreignField: "Id",
+    as: "user_detail"}},
+{$match: {$or: [{Id: 1}, {ParentId: 1}]}},
+{$project: {_id: 0, Id: "$user_detail.Id", CreationDate: "$user_detail.CreationDate", DisplayName: "$user_detail.DisplayName", upVote: "$user_detail.upVote", DownVote: "user_detail.DownVote"}}
+])
+
+[SQ2]
+db.getCollection('posts').aggregate([
+{$match: {Tags: "neural-networks"}},
+{$sort: {ViewCount: -1}},
+{$limit: 1}
+])
+
+[AQ1]
+db.getCollection('posts').aggregate([
+{$match:{Tags:"neural-networks"}},
+{$lookup:{
+    from: "posts",
+    localField: "AnswerId",
+    foreignField: "Id",
+    as: "answers"}},
+{$unwind: "$answers"},
+{$project: {_id: 0, Id: "$Id", Title: "$Title", gap: {$subtract: ["$answers.CreationDate", "$CreationDate"]}}},
+{$sort: {gap: 1}},
+{$limit: 1}
+])
+
+[AQ2]
+db.getCollection('posts').aggregate([
+{$match: {CreationDate: {$gt: ISODate("2018-08-01T00:00:00"), $lt: ISODate("2018-08-31T00:00:00")}}},
+{$unwind: "$Tags"},
+{$group: {_id: {Tag: "$Tags", OwnerUserId: "$OwnerUserId"}, sum: {$sum: 1}}},
+{$group: {_id: "$_id.Tag", sumOfPosts: {$sum: 1}}},
+{$sort: {sumOfPosts: -1}},
+{$limit: 5}
+])
+
+[AQ3]
+db.getCollection('posts').aggregate([
+{$match: {Tags: "deep-learning"}},
+{$group: {_id: "$OwnerUserId", sum: {$sum: 1}}},
+{$sort: {sum: -1}},
+{$limit: 1}
+])
