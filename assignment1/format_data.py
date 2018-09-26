@@ -59,11 +59,25 @@ db = client.assignment1
 #     db.posts.update(condition, post)
 
 # 删除所有AcceptedAnswerId=""
-posts = db.posts.find({'AcceptedAnswerId': ""})
-for post in posts:
-    condition = {'_id': post['_id']}
-    del post['AcceptedAnswerId']
-    db.posts.update(condition, post)
+# posts = db.posts.find({'AcceptedAnswerId': ""})
+# for post in posts:
+#     condition = {'_id': post['_id']}
+#     del post['AcceptedAnswerId']
+#     db.posts.update(condition, post)
+#
+# posts = db.posts.find({'AcceptedAnswerId': {'$exists': False}, 'PostTypeId': 1})
+# for post in posts:
+#     condition = {'_id': post['_id']}
+#     post['AcceptedAnswerId'] = None
+#     db.posts.update(condition, post)
+
+# 所有answer增加IsAccepted属性
+answers = db.posts.find({'PostTypeId': 2})
+for answer in answers:
+    question = db.posts.find_one({'Id': answer['ParentId']})
+    accepted_id = question['AcceptedAnswerId']
+    answer['IsAccepted'] = True if answer['Id'] == accepted_id else False
+    db.posts.update({'_id': answer['_id']}, answer)
 
 
 client.close()

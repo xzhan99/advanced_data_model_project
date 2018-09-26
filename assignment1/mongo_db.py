@@ -66,6 +66,25 @@ def find_hot_topics_by_period(db, start_time, end_time):
 
 
 # [AQ3] Given a topic, find the champion user and all questions the user has answers accepted in that topic
+def find_champion_user_by_topic(db, topic):
+    questions = db.posts.aggregate([
+        {'$match': {'Tags': topic, 'PostTypeId': 2, 'IsAccepted': True}},
+        {'$group': {'_id': "$OwnerUserId", 'AcceptedQuestionId': {'$addToSet': "$ParentId"}}},
+        {'$project': {'_id': 0, 'UserId': "$_id", 'AcceptedQuestionId': "$AcceptedQuestionId",
+                      'num': {'$size': "$AcceptedQuestionId"}}},
+        {'$sort': {'num': -1}},
+        {'$limit': 1},
+        {'$unwind': "$AcceptedQuestionId"},
+        {'$lookup': {
+            'from': "posts",
+            'localField': "AcceptedQuestionId",
+            'foreignField': "Id",
+            'as': "question_detail"}},
+        {'$project': {'UserId': "$UserId", 'QuestionId': "$AcceptedQuestionId", 'Title': "$question_detail.Title"}},
+        {'$sort': {'Id': 1}}
+    ])
+    for question in list(questions):
+        print(question)
 
 
 if __name__ == '__main__':
@@ -76,5 +95,6 @@ if __name__ == '__main__':
     # find_most_viewed_question(db, 'neural-networks')
     # find_easiest_question(db, 'neural-networks')
     # find_hot_topics_by_period(db, '2018-08-01T00:00:00', '2018-08-31T00:00:00')
+    find_champion_user_by_topic(db, 'deep-learning')
 
     client.close()

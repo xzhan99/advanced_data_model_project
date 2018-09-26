@@ -42,8 +42,17 @@ db.getCollection('posts').aggregate([
 
 [AQ3]
 db.getCollection('posts').aggregate([
-{$match: {Tags: "deep-learning"}},
-{$group: {_id: "$OwnerUserId", sum: {$sum: 1}}},
-{$sort: {sum: -1}},
-{$limit: 1}
+{$match: {Tags: "deep-learning", PostTypeId: 2, IsAccepted: true}},
+{$group: {_id: "$OwnerUserId", AcceptedQuestionId: {$addToSet: "$ParentId"}}},
+{$project: {_id: 0, UserId: "$_id", AcceptedQuestionId: "$AcceptedQuestionId", num: {$size: "$AcceptedQuestionId"}}},
+{$sort: {num: -1}},
+{$limit: 1},
+{$unwind: "$AcceptedQuestionId"},
+{$lookup:{
+    from: "posts",
+    localField: "AcceptedQuestionId",
+    foreignField: "Id",
+    as: "question_detail"}},
+{$project: {UserId: "$UserId", QuestionId: "$AcceptedQuestionId", Title: "$question_detail.Title"}},
+{$sort: {Id: 1}}
 ])
