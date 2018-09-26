@@ -44,18 +44,25 @@ db = client.assignment1
 #     db.posts.update(condition, post)
 
 # 给PostTypeId=2的post加上Title
-answers = db.posts.aggregate([
-    {'$match': {'PostTypeId': 2}},
-    {'$lookup': {
-        'from': "posts",
-        'localField': "ParentId",
-        'foreignField': "Id",
-        'as': "Parent"}}
-])
-for post in answers:
+# answers = db.posts.aggregate([
+#     {'$match': {'PostTypeId': 2}},
+#     {'$lookup': {
+#         'from': "posts",
+#         'localField': "ParentId",
+#         'foreignField': "Id",
+#         'as': "Parent"}}
+# ])
+# for post in answers:
+#     condition = {'_id': post['_id']}
+#     post['Title'] = post['Parent'][0]['Title']
+#     del post['Parent']
+#     db.posts.update(condition, post)
+
+# 删除所有AcceptedAnswerId=""
+posts = db.posts.find({'AcceptedAnswerId': ""})
+for post in posts:
     condition = {'_id': post['_id']}
-    post['Title'] = post['Parent'][0]['Title']
-    del post['Parent']
+    del post['AcceptedAnswerId']
     db.posts.update(condition, post)
 
 

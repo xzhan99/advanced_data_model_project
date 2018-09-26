@@ -18,14 +18,14 @@ db.getCollection('posts').aggregate([
 
 [AQ1]
 db.getCollection('posts').aggregate([
-{$match:{Tags:"neural-networks"}},
+{$match:{Tags:"neural-networks", PostTypeId: 1, AcceptedAnswerId: {$exists: true}}},
 {$lookup:{
     from: "posts",
-    localField: "AnswerId",
+    localField: "AcceptedAnswerId",
     foreignField: "Id",
-    as: "answers"}},
-{$unwind: "$answers"},
-{$project: {_id: 0, Id: "$Id", Title: "$Title", gap: {$subtract: ["$answers.CreationDate", "$CreationDate"]}}},
+    as: "AcceptedAnswer"}},
+{$unwind: "$AcceptedAnswer"},
+{$project: {_id: 0, Id: "$Id", Title: "$Title", gap: {$subtract: ["$AcceptedAnswer.CreationDate", "$CreationDate"]}}},
 {$sort: {gap: 1}},
 {$limit: 1}
 ])

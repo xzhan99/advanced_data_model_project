@@ -30,15 +30,15 @@ def find_most_viewed_question(db, topic):
 # [AQ1] Given a list of topics (tags), find the question easiest to answer in each topic
 def find_easiest_question(db, topic):
     question = db.posts.aggregate([
-        {'$match': {'Tags': topic}},
+        {'$match': {'Tags': topic, 'PostTypeId': 1, 'AcceptedAnswerId': {'$exists': True}}},
         {'$lookup': {
             'from': "posts",
-            'localField': "AnswerId",
+            'localField': "AcceptedAnswerId",
             'foreignField': "Id",
-            'as': "answers"}},
-        {'$unwind': "$answers"},
+            'as': "AcceptedAnswer"}},
+        {'$unwind': "$AcceptedAnswer"},
         {'$project': {'_id': 0, 'Id': "$Id", 'Title': "$Title",
-                      'gap': {'$subtract': ["$answers.CreationDate", "$CreationDate"]}}},
+                      'gap': {'$subtract': ["$AcceptedAnswer.CreationDate", "$CreationDate"]}}},
         {'$sort': {'gap': 1}},
         {'$limit': 1}
     ])
@@ -75,6 +75,6 @@ if __name__ == '__main__':
     # find_users_by_question(db, 1)
     # find_most_viewed_question(db, 'neural-networks')
     # find_easiest_question(db, 'neural-networks')
-    find_hot_topics_by_period(db, '2018-08-01T00:00:00', '2018-08-31T00:00:00')
+    # find_hot_topics_by_period(db, '2018-08-01T00:00:00', '2018-08-31T00:00:00')
 
     client.close()
