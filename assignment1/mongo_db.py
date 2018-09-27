@@ -6,11 +6,15 @@ import pymongo
 # [SQ1] Find all users involved in a given question
 def find_users_by_question(db, question_id):
     users = db.posts.aggregate([
-        {'$lookup': {'from': "users", 'localField': "OwnerUserId", 'foreignField': "Id", 'as': "user_detail"}},
         {'$match': {'$or': [{'Id': question_id}, {'ParentId': question_id}]}},
-        {'$project': {'_id': 0, 'Id': "$user_detail.Id", 'CreationDate': "$user_detail.CreationDate",
-                      'DisplayName': "$user_detail.DisplayName", 'upVote': "$user_detail.upVote",
-                      'DownVote': "user_detail.DownVote"}}
+        {'$lookup': {
+            'from': "users",
+            'localField': "OwnerUserId",
+            'foreignField': "Id",
+            'as': "UserDetail"}},
+        {'$project': {'_id': 0, 'Id': "$UserDetail.Id", 'CreationDate': "$UserDetail.CreationDate",
+                      'DisplayName': "$UserDetail.DisplayName", 'upVote': "$UserDetail.upVote",
+                      'DownVote': "$UserDetail.DownVote"}}
     ])
     for user in list(users):
         print(user)
@@ -19,7 +23,7 @@ def find_users_by_question(db, question_id):
 # [SQ2] find the most viewed question in a given topic
 def find_most_viewed_question(db, topic):
     question = db.posts.aggregate([
-        {'$match': {'Tags': "neural-networks"}},
+        {'$match': {'Tags': topic, 'PostTypeId': 1}},
         {'$sort': {'ViewCount': -1}},
         {'$limit': 1}
     ])
@@ -28,22 +32,24 @@ def find_most_viewed_question(db, topic):
 
 
 # [AQ1] Given a list of topics (tags), find the question easiest to answer in each topic
-def find_easiest_question(db, topic):
-    question = db.posts.aggregate([
-        {'$match': {'Tags': topic, 'PostTypeId': 1, 'AcceptedAnswerId': {'$exists': True}}},
+def find_easiest_question(db, topics):
+    questions = db.posts.aggregate([
+        {'$match': {'Tags': {'$in': topics}, 'PostTypeId': 1, 'AcceptedAnswerId': {'$exists': True}}},
         {'$lookup': {
             'from': "posts",
             'localField': "AcceptedAnswerId",
             'foreignField': "Id",
             'as': "AcceptedAnswer"}},
+        {'$unwind': "$Tags"},
         {'$unwind': "$AcceptedAnswer"},
-        {'$project': {'_id': 0, 'Id': "$Id", 'Title': "$Title",
+        {'$match': {'Tags': {'$in': topics}}},
+        {'$project': {'_id': 0, 'Id': "$Id", 'Tags': "$Tags", 'Title': "$Title",
                       'gap': {'$subtract': ["$AcceptedAnswer.CreationDate", "$CreationDate"]}}},
         {'$sort': {'gap': 1}},
-        {'$limit': 1}
+        {'$group': {'_id': "$Tags", 'Id': {'$first': "$Id"}, 'Title': {'$first': "$Title"}}}
     ])
-    question = list(question)[0]
-    print(question)
+    for question in list(questions):
+        print(question)
 
 
 # [AQ2] Given a time period as indicated by starting and ending date, find the top 5 topics in that period
@@ -91,10 +97,10 @@ if __name__ == '__main__':
     client = pymongo.MongoClient(host='localhost', port=27017)
     db = client.assignment1
 
-    # find_users_by_question(db, 1)
+    find_users_by_question(db, 2)
     # find_most_viewed_question(db, 'neural-networks')
-    # find_easiest_question(db, 'neural-networks')
+    # find_easiest_question(db, ['neural-networks', 'mindstorms'])
     # find_hot_topics_by_period(db, '2018-08-01T00:00:00', '2018-08-31T00:00:00')
-    find_champion_user_by_topic(db, 'deep-learning')
+    # find_champion_user_by_topic(db, 'deep-learning')
 
     client.close()

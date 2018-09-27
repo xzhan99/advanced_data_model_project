@@ -1,36 +1,38 @@
-[SQ1]
+[SQ1] 2ms
 db.getCollection('posts').aggregate([
+{$match: {$or: [{Id: 1}, {ParentId: 1}]}},
 {$lookup:{
     from: "users",
     localField: "OwnerUserId",
     foreignField: "Id",
-    as: "user_detail"}},
-{$match: {$or: [{Id: 1}, {ParentId: 1}]}},
-{$project: {_id: 0, Id: "$user_detail.Id", CreationDate: "$user_detail.CreationDate", DisplayName: "$user_detail.DisplayName", upVote: "$user_detail.upVote", DownVote: "user_detail.DownVote"}}
+    as: "UserDetail"}},
+{$project: {_id: 0, Id: "$UserDetail.Id", CreationDate: "$UserDetail.CreationDate", DisplayName: "$UserDetail.DisplayName", upVote: "$UserDetail.upVote", DownVote: "UserDetail.DownVote"}}
 ])
 
-[SQ2]
+[SQ2] 6ms
 db.getCollection('posts').aggregate([
-{$match: {Tags: "neural-networks"}},
+{$match: {Tags: "neural-networks", PostTypeId: 1}},
 {$sort: {ViewCount: -1}},
 {$limit: 1}
 ])
 
-[AQ1]
+[AQ1] 36ms
 db.getCollection('posts').aggregate([
-{$match:{Tags:"neural-networks", PostTypeId: 1, AcceptedAnswerId: {$exists: true}}},
+{$match:{Tags: {$in: ["neural-networks", "terminology"] }, PostTypeId: 1, AcceptedAnswerId: {$exists: true}}},
 {$lookup:{
     from: "posts",
     localField: "AcceptedAnswerId",
     foreignField: "Id",
     as: "AcceptedAnswer"}},
+{$unwind: "$Tags"},
 {$unwind: "$AcceptedAnswer"},
-{$project: {_id: 0, Id: "$Id", Title: "$Title", gap: {$subtract: ["$AcceptedAnswer.CreationDate", "$CreationDate"]}}},
+{$match: {Tags: {$in: ["neural-networks", "terminology"]}}},
+{$project: {_id: 0, Id: "$Id", Tags: "$Tags", Title: "$Title", gap: {$subtract: ["$AcceptedAnswer.CreationDate", "$CreationDate"]}}},
 {$sort: {gap: 1}},
-{$limit: 1}
+{$group: {_id: "$Tags", Id: {$first: "$Id"}, Title: {$first: "$Title"}}}
 ])
 
-[AQ2]
+[AQ2] 8ms
 db.getCollection('posts').aggregate([
 {$match: {CreationDate: {$gt: ISODate("2018-08-01T00:00:00"), $lt: ISODate("2018-08-31T00:00:00")}}},
 {$unwind: "$Tags"},
@@ -40,7 +42,7 @@ db.getCollection('posts').aggregate([
 {$limit: 5}
 ])
 
-[AQ3]
+[AQ3] 6ms
 db.getCollection('posts').aggregate([
 {$match: {Tags: "deep-learning", PostTypeId: 2, IsAccepted: true}},
 {$group: {_id: "$OwnerUserId", AcceptedQuestionId: {$addToSet: "$ParentId"}}},
