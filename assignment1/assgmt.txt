@@ -28,6 +28,12 @@ match (p1:Post),(p2:Post)
 where p1.Id = p2.ParentId
 create (p1)-[:question_of]->(p2)
 
+//
+match(p1:Post),(p2:Post)
+where p1.Id = p2.ParentId
+create(p2)-[:answer_to]->(p1)
+
+//
 match(p1:Post),(p2:Post)
 where p1.AcceptedAnswerId = p2.Id
 create(p2)-[:answer_of]->(p1)
@@ -45,7 +51,7 @@ create(p)-[:belongs_to]->(t)
 //
 match (p:Post),(v:Votes)
 where p.Id = v.PostId
-create (p)-[:has_votes]->(v)
+create (p)-[:has_votes{Type:v.VoteTypeId}]->(v)
 
 //Simple Query 1:
 match (u1:Users)--(:Post{Id:"2"})-[:question_of]->(:Post)--(u2:Users) return u1,u2
@@ -76,12 +82,12 @@ where not (a)-[:answer_of]-(q)
 set a.Accepted=false
 return a
 
-match (:Votes{VotesTypeId:"2"})<-[rq:has_votes]-(q:Post)
+match ()-[rq:has_votes{Type:"2"}]-(q:Post)
 with q,count(rq) as question_upvote
 where question_upvote>10
 
-match (q)-[:question_of]->(a:Post),
-(a)-[rv:has_votes]->(:Votes{VotesTypeId:"2"})
+match (q)-->(a:Post),
+(a)-[rv:has_votes{Type:"2"}]->()
 with q,a,count(rv) as answer_upvotes
 where a.Accepted=false
 or a.Accepted=true
