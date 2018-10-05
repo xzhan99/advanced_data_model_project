@@ -51,7 +51,7 @@ create(p)-[:belongs_to]->(t)
 //
 match (p:Post),(v:Votes)
 where p.Id = v.PostId
-create (p)-[:has_votes{Type:v.VoteTypeId}]->(v)
+create (p)-[:has_votes{Type:v.VotesTypeId}]->(v)
 
 //Simple Query 1:
 match (u1:Users)--(:Post{Id:"2"})-[:question_of]->(:Post)--(u2:Users) return u1,u2
@@ -62,7 +62,7 @@ return p
 order by toInt(p.ViewCount) DESC limit 1
 
 //AQ4
-match (u:Users{Id:"4398"})-[:posted]->(:Post)-[:answer_of]-(:Post)-[:belongs_to]->(t:Tags)<-[:belongs_to]-(p2:Post)
+match (u:Users{Id:"4398"})-->(:Post)-[:answer_of]-(:Post)-->(t:Tags)<--(p2:Post)
 with p2,t,count(t.TagName) as occurrence
 where occurrence>=4
 and p2.AcceptedAnswerId is null
@@ -70,7 +70,6 @@ and p2.CreationDate<"2018-08-30T00:00:00"
 return distinct p2.Id,p2.Title, p2.CreationDate
 order by p2.CreationDate DESC
 limit 5
-
 
 //AQ5
 match (a:Post)-[:answer_of]->(q:Post)
@@ -81,17 +80,20 @@ match (q:Post)-[:question_of]->(a:Post)
 where not (a)-[:answer_of]-(q)
 set a.Accepted=false
 return a
+//
+match (a:Post)-[:answer_to]->(),
+(a)-[r:has_votes{Type:"2"}]-()
+with a, count(r) as uv
+set a.Upvote2 = uv
 
+//
 match ()-[rq:has_votes{Type:"2"}]-(q:Post)
 with q,count(rq) as question_upvote
 where question_upvote>10
 
-match (q)-->(a:Post),
-(a)-[rv:has_votes{Type:"2"}]->()
-with q,a,count(rv) as answer_upvotes
-where a.Accepted=false
-or a.Accepted=true
-return q.Id,max(answer_upvotes),a.Accepted
+match (a_accepted:Post)-[:answer_of]->(q)<-[:answer_to]-(a_other:Post)
+where a_accepted.Upvote2 < a_other.Upvote2
+return q.Id,a_accepted.Upvote2,a_other.Upvote2
 order by toInt(q.Id)
 
 //AQ6
