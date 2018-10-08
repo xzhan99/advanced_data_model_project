@@ -1,12 +1,7 @@
-[SQ1] 2ms
+[SQ1] 1ms
 db.getCollection('posts').aggregate([
 {$match: {$or: [{Id: 1}, {ParentId: 1}]}},
-{$lookup:{
-    from: "users",
-    localField: "OwnerUserId",
-    foreignField: "Id",
-    as: "UserDetail"}},
-{$project: {_id: 0, Id: "$UserDetail.Id", CreationDate: "$UserDetail.CreationDate", DisplayName: "$UserDetail.DisplayName", upVote: "$UserDetail.upVote", DownVote: "UserDetail.DownVote"}}
+{$group: {_id: "$OwnerUser.Id", userDetail:{$first: "$OwnerUser"}}}
 ])
 
 [SQ2] 6ms
@@ -16,16 +11,10 @@ db.getCollection('posts').aggregate([
 {$limit: 1}
 ])
 
-[AQ1] 36ms
+[AQ1] 7ms
 db.getCollection('posts').aggregate([
-{$match:{Tags: {$in: ["neural-networks", "terminology"] }, PostTypeId: 1, AcceptedAnswerId: {$exists: true}}},
-{$lookup:{
-    from: "posts",
-    localField: "AcceptedAnswerId",
-    foreignField: "Id",
-    as: "AcceptedAnswer"}},
+{$match:{Tags: {$in: ["neural-networks", "terminology"] }, PostTypeId: 1, AcceptedAnswer: {$exists: true}}},
 {$unwind: "$Tags"},
-{$unwind: "$AcceptedAnswer"},
 {$match: {Tags: {$in: ["neural-networks", "terminology"]}}},
 {$project: {_id: 0, Id: "$Id", Tags: "$Tags", Title: "$Title", gap: {$subtract: ["$AcceptedAnswer.CreationDate", "$CreationDate"]}}},
 {$sort: {gap: 1}},
@@ -36,16 +25,16 @@ db.getCollection('posts').aggregate([
 db.getCollection('posts').aggregate([
 {$match: {CreationDate: {$gt: ISODate("2018-08-01T00:00:00"), $lt: ISODate("2018-08-31T00:00:00")}}},
 {$unwind: "$Tags"},
-{$group: {_id: {Tag: "$Tags", OwnerUserId: "$OwnerUserId"}, sum: {$sum: 1}}},
+{$group: {_id: {Tag: "$Tags", OwnerUserId: "$OwnerUser.Id"}, sum: {$sum: 1}}},
 {$group: {_id: "$_id.Tag", sumOfPosts: {$sum: 1}}},
 {$sort: {sumOfPosts: -1}},
 {$limit: 5}
 ])
 
-[AQ3] 6ms
+[AQ3] 4ms
 db.getCollection('posts').aggregate([
 {$match: {Tags: "deep-learning", PostTypeId: 2, IsAccepted: true}},
-{$group: {_id: "$OwnerUserId", AcceptedQuestionId: {$addToSet: "$ParentId"}}},
+{$group: {_id: "$OwnerUser.Id", AcceptedQuestionId: {$addToSet: "$ParentId"}}},
 {$project: {_id: 0, UserId: "$_id", AcceptedQuestionId: "$AcceptedQuestionId", num: {$size: "$AcceptedQuestionId"}}},
 {$sort: {num: -1}},
 {$limit: 1},
