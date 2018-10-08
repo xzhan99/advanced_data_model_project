@@ -5,56 +5,79 @@ Score:line.Score,ViewCount:line.ViewCount,OwnerUserId:line.OwnerUserId,Title:lin
 CommentCount:line.CommentCount,FavoriteCount:line.FavorateCount,ParentId:line.ParentId,ClosedDate:line.ClosedDate,OwnerDisplayName:line.OwnerDisplayName})
 return p
 
-//
+//Load Tags.tsv
 Load csv with headers from "file:///data/tags.tsv" as line fieldterminator "\t"
 create (t:Tags{Id:line.Id,TagName:line.TagName,cnt:line.Count})
 return t
 
-//
+//Load Votes.tsv
 LOAD CSV WITH HEADERS FROM "file:///data/Votes.tsv" as line FIELDTERMINATOR "\t" 
 Create(v:Votes{Id:line.Id,PostId:line.PostId,VotesTypeId:line.VoteTypeId
 ,CreationDate:line.CreationDate,UserId:line.UserId,BountyAmount:line.BountyAmount})
 return v
 
-//
+//Load Users.tsv
 LOAD CSV WITH HEADERS FROM "file:///data/Users.tsv" as line FIELDTERMINATOR "\t" 
 create(u:Users{Id:line.Id,Reputation:line.Reputation,CreationDate:line.CreationDate
 ,DisplayName:line.DisplayName,LastAccessDate:line.LastAccessDate,Location:line.Location
 ,Views:line.Views,UpVotes:line.UpVotes,DownVotes:line.DownVotes})
 return u
 
-//
+//Creates sets of relationship between tables
 match (p1:Post),(p2:Post)
 where p1.Id = p2.ParentId
 create (p1)-[:question_of]->(p2)
 
-//
 match(p1:Post),(p2:Post)
 where p1.Id = p2.ParentId
 create(p2)-[:answer_to]->(p1)
 
-//
 match(p1:Post),(p2:Post)
 where p1.AcceptedAnswerId = p2.Id
 create(p2)-[:answer_of]->(p1)
 
-//
 match(p:Post),(u:Users)
 where p.OwnerUserId = u.Id
 create (u)-[:posted]->(p)
 
-//
 match(p:Post),(t:Tags)
 where p.Tags contains  t.TagName
 create(p)-[:belongs_to]->(t)
 
-//
 match (p:Post),(v:Votes)
 where p.Id = v.PostId
-create (p)-[:has_votes{Type:v.VotesTypeId}]->(v)
+create (p)-[:has_votes{Type:toInt(v.VotesTypeId)}]->(v)
+
+//Set properties data types 
+match(p:Post)
+set p.ViewCount=toInt(p.ViewCount),
+p.Id = toInt(p.Id)
+
+match(p:Users)
+set p.Id = toInt(p.Id)
+
+//Create indices on Post and Users "Id" property
+create index on :Post(Id)
+create index on :Users(Id)
+
+//add "Accepted" property onto Post table. for PostTypeId = 2, if the answer is accepted, return "true, else, return "false"
+match (a:Post)-[:answer_of]->(q:Post)
+set a.Accepted = true
+return a
+
+match (q:Post)-[:question_of]->(a:Post)
+where not (a)-[:answer_of]-(q)
+set a.Accepted=false
+return a
+
+//adding an "Upvote2" Property to Post table, counting the number of [:has_votes{Type:2}] relationships on each Post node
+match (a:Post)-[:answer_to]->(),
+(a)-[r:has_votes{Type:2}]-()
+with a, count(r) as uv
+set a.Upvote2 = uv
 
 //Simple Query 1:
-match (u1:Users)--(:Post{Id:"2"})-[:question_of]->(:Post)--(u2:Users) return u1,u2
+match (u1:Users)-[*2..3]->(:Post{Id:2}) return distinct u1
 
 //Simple Query 2:
 match(p:Post)-[:belongs_to]->(:Tags{TagName:"neurons"})
@@ -62,7 +85,7 @@ return p
 order by toInt(p.ViewCount) DESC limit 1
 
 //AQ4
-match (u:Users{Id:"4398"})-->(:Post)-[:answer_of]-(:Post)-->(t:Tags)<--(p2:Post)
+match (u:Users{Id:4398})-->(:Post)-[:answer_of]-(:Post)-->(t:Tags)<--(p2:Post)
 with p2,t,count(t.TagName) as occurrence
 where occurrence>=4
 and p2.AcceptedAnswerId is null
@@ -72,34 +95,18 @@ order by p2.CreationDate DESC
 limit 5
 
 //AQ5
-match (a:Post)-[:answer_of]->(q:Post)
-set a.Accepted = true
-return a
-
-match (q:Post)-[:question_of]->(a:Post)
-where not (a)-[:answer_of]-(q)
-set a.Accepted=false
-return a
-//
-match (a:Post)-[:answer_to]->(),
-(a)-[r:has_votes{Type:"2"}]-()
-with a, count(r) as uv
-set a.Upvote2 = uv
-
-//
-match ()-[rq:has_votes{Type:"2"}]-(q:Post)
+match ()-[rq:has_votes{Type:2}]-(q:Post)
 with q,count(rq) as question_upvote
 where question_upvote>10
-
 match (a_accepted:Post)-[:answer_of]->(q)<-[:answer_to]-(a_other:Post)
 where a_accepted.Upvote2 < a_other.Upvote2
 return q.Id,a_accepted.Upvote2,a_other.Upvote2
-order by toInt(q.Id)
+order by q.Id
 
 //AQ6
 match(me:Users)-->(p:Post)<-[*2..3]-(u:Users)
-where me.Id="4398"
-and not u.Id = "4398"
+where me.Id=4398
+and not u.Id = 4398
 return u.Id,count(u.Id)
 order by count(u.Id) desc
 limit 5
