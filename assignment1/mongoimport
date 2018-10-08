@@ -1,0 +1,4 @@
+mongoimport --db assignment_test --collection posts --file Posts.tsv --type tsv --headerline
+mongoimport --db assignment_test --collection users --file Users.tsv --type tsv --headerline
+mongoimport --db assignment_test --collection tags --file Tags.tsv --type tsv --headerline
+mongoimport --db assignment_test --collection votes --file Votes.tsv --type tsv --headerline
